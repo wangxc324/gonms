@@ -1,0 +1,50 @@
+package nms
+
+import (
+	"database/sql"
+
+	_ "github.com/go-sql-driver/mysql"
+)
+
+type DB struct {
+	ConnStr string
+	Driver  string
+}
+
+func NewDB(name string) DB {
+	conf := Conf{}
+	conf.Load()
+	db := DB{
+		Driver:  conf.Get(name, "driver").(string),
+		ConnStr: conf.Get(name, "conn").(string),
+	}
+	return db
+}
+
+//执行查询
+func (db DB) Query(sqlstr string, h RowParser) {
+	conn, err := sql.Open(db.Driver, db.ConnStr)
+	if err == nil {
+		defer conn.Close()
+		rows, err := conn.Query(sqlstr)
+		if err == nil {
+			for rows.Next() {
+				h(rows)
+			}
+		}
+	}
+
+}
+
+//执行非查询
+func (db DB) Exec(sqlstr string, params ...interface{}) (result sql.Result, execerr error) {
+	conn, err := sql.Open(db.Driver, db.ConnStr)
+	var sqlresult sql.Result
+	var rerr error = err
+	if err == nil {
+		defer conn.Close()
+		sqlresult, rerr = conn.Exec(sqlstr, params)
+	}
+
+	return sqlresult, rerr
+}
